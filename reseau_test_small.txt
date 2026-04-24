@@ -1,0 +1,9 @@
+# Test file with only 5 articles (space for IDs 0-9)
+A 0 "Article_Zero" Source1 50 15 3 2025 9 0
+A 1 "Article_One" Source2 60 15 3 2025 10 0
+A 2 "Article_Two" Source3 70 16 3 2025 11 0
+A 3 "Article_Three" Source4 80 16 3 2025 12 0
+A 4 "Article_Four" Source5 90 17 3 2025 13 0
+
+C 0 1
+C 1 2

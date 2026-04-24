@@ -1,0 +1,50 @@
+# depslib dependency file v1.0
+1776633889 source:c:\projects\c\projetc2\c2\eltarticle.c
+	<stdio.h>
+	<stdlib.h>
+	<string.h>
+	"ELTPRIM.H"
+
+1776632744 c:\projects\c\projetc2\c2\eltprim.h
+	"ELTSDD.H"
+
+1776632744 c:\projects\c\projetc2\c2\eltsdd.h
+	"ELTARTICLE.H"
+
+1776632744 c:\projects\c\projetc2\c2\eltarticle.h
+
+1776636117 source:c:\projects\c\projetc2\c2\graphe.c
+	<stdio.h>
+	<stdlib.h>
+	<string.h>
+	<ctype.h>
+	"GRAPHE.H"
+	"fakesdb.h"
+
+1776635600 c:\projects\c\projetc2\c2\graphe.h
+	"LSTPRIM.H"
+
+1776633155 c:\projects\c\projetc2\c2\lstprim.h
+	"ELTPRIM.H"
+	"LSTSDD.H"
+
+1776633154 c:\projects\c\projetc2\c2\lstsdd.h
+	"LSTPTR.H"
+
+1776633155 c:\projects\c\projetc2\c2\lstptr.h
+	"ELTPRIM.H"
+
+1776632744 c:\projects\c\projetc2\c2\fakesdb.h
+
+1776636117 source:c:\projects\c\projetc2\c2\lstptr.c
+	<stdio.h>
+	<stdlib.h>
+	"LSTPRIM.H"
+
+1776636117 source:c:\projects\c\projetc2\c2\main.c
+	<stdio.h>
+	<stdlib.h>
+	<string.h>
+	"LSTPRIM.H"
+	"GRAPHE.H"
+
