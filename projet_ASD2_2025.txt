@@ -1,0 +1,445 @@
+Projet : Propagation et Détection de Désinformation
+dans un Réseau d’Information
+Université de Tunis - Institut Supérieur de Gestion
+Année Universitaire 2025/2026
+Enseignants
+Nahla Ben Amor, Zied Elouedi, Meriam Jemel, Hayet Khemiri, Maha Fraj, Siwar
+Gorrab, Kaouther Dridi, Rihab Abidi, Ibtissem Benouhiba, Chaima Laroussi, Firass Zekri
+1 Environnement, Remarques et Contenu du Rapport
+— Le projet doit être réalisé avec le langage de programmation C, en binôme avec un
+membre du même groupe de TP.
+— Cette première partie du projet est notée sur 15 points. Les 5 points restants seront
+attribués lors d’une évaluation sur machine en classe, individuelle et sans accès
+à Internet. Une partie bonus (section 6) peut rapporter des points supplémentaires
+qui compensent les points manquants à l’évaluation machine, sans dépasser le total
+de 20/20.
+— Le code que vous proposez doit être entièrement de votre conception. L’utilisation
+des modèles de langage (LLM) comme ChatGPT peut être une aide pour la compré-
+hension et pour générer des données de test (voir section 3), mais en aucun cas un
+substitut à votre propre réflexion et travail. Tout code généré automatiquement
+sans réelle appropriation sera pénalisé.
+Le rapport final devra contenir :
+— Détail de la réalisation du projet et des structures de données utilisées (les fichiers
+.h et .c doivent être clairement définis et bien organisés).
+— Listing des différents fichiers sources.
+— Un lien Drive avec tous les codes sources.
+— Description de l’utilisation de l’IA générative dans le projet : outils utilisés, prompts
+employés, parties du travail concernées, et apport personnel au-delà de ce qui a été
+généré.
+— Il sera tenu compte de la présentation du rapport.
+1
+2 Introduction
+Sur les réseaux numériques, une fausse information peut être publiée par un site peu
+fiable, citée par d’autres sites, puis par d’autres encore, se propageant ainsi à grande
+vitesse avant d’être démentie. Ce phénomène s’appelle la désinformation.
+Ce projet a pour objectif de concevoir et d’implémenter, en langage C, une structure
+de données permettant de modéliser un réseau de citations entre articles, d’analyser la
+propagation d’une fake news, et de détecter automatiquement les articles suspects.
+Le réseau d’information est modélisé sous forme d’un graphe orienté où chaque
+nœud représente un article publié sur le web, et chaque arête orientée A → B signifie
+que l’article A cite l’article B.
+Ce graphe est orienté : si l’article A cite l’article B, cela ne signifie pas que B cite A
+en retour.
+Définition d’un article — TDA ELEMENT
+Dans ce projet, le TDA ELEMENT vu en cours est réalisé par un article d’infor-
+mation. Vous devez gérer ELTARTICLE.H et ELTARTICLE.C.
+Un article possède :
+— un identifiant unique (id),
+— un titre (titre),
+— le nom du site ou de la page qui l’a publié (source),
+— un score de fiabilité entre 0 et 100 (score_fiabilite) : 0 signifie que l’article est
+une fake news certaine, 100 signifie qu’il est totalement fiable,
+— sa date de publication : jour, mois, annee, heure, minute.
+/***************************************************
+* Fichier : ELTARTICLE.H
+* Realisation du TDA ELEMENT par un article
+***************************************************/
+typedef struct {
+int id;
+char titre[100];
+char source[50];
+int score_fiabilite;
+int jour, mois, annee;
+int heure, minute;
+} articleStruct, *ELEMENT;
+#define ELEMENT_VIDE NULL
+Par exemple :
+— L’article “Vaccin_cache_dangereux” publié par la page Facebook page_TunisieActu
+le 15/03/2025 à 09h00, avec un score de fiabilité de 8, est très suspect.
+— Le communiqué officiel “Communique_officiel” publié par le site du Ministère de la
+Santé tunisien le 15/03/2025 à 07h00, avec un score de 90, est fiable.
+2
+Structure des relations entre articles
+Les relations de citation entre articles sont représentées par une liste d’adjacence :
+pour chaque article i, on maintient la liste des articles qu’il cite. Les éléments de cette
+liste sont de type ELEMENT (des articles, au sens du TDA ELEMENT vu en cours).
+typedef struct {
+int V;
+ELEMENT *articles; /* tableau des articles [0..V-1] */
+LISTE *adjList; /* adjList[i] = LISTE des articles */
+/* cites par l’article i */
+int *degre_in; /* degre_in[i] = nb d’articles */
+/* qui citent l’article i */
+} *grapheReseau;
+Exemple de réseau
+Considérons un réseau de 5 articles. Une fake news sur un vaccin circule sur le web
+tunisien et arabophone le 15/03/2025. Voici les articles publiés dans l’ordre chronologique :
+— A3 — Communique_officiel, publié par MinistereSante le 15/03/2025 à 07h00,
+score 90. C’est le premier article publié : un communiqué officiel qui ne cite aucun
+autre article.
+— A1 — Etude_OMS_mal_interpretee, publié par Kapitalis le 15/03/2025 à 08h00,
+score 45. Cet article cite A3 (publié le 15/03/2025 à 07h00 ✓).
+— A0 — Vaccin_cache_dangereux, publié par page_TunisieActu le 15/03/2025 à
+09h00, score 8. Cet article cite A1 (publié le 15/03/2025 à 08h00 ✓) et A3 (publié
+le 15/03/2025 à 07h00 ✓).
+— A2 — Partagez_avant_suppression, publié par TunisieNumerique le 15/03/2025
+à 11h00, score 5. Cet article cite A0 (publié le 15/03/2025 à 09h00 ✓).
+— A4 — Alerte_vaccin_monde_arabe, publié par RTArabic le 15/03/2025 à 14h00,
+score 15. Cet article cite A0 (publié le 15/03/2025 à 09h00 ✓) et A2 (publié le
+15/03/2025 à 11h00 ✓).
+Voici le schéma de ce réseau. Une flèche A → B signifie “l’article A cite l’article B” :
+[3] Communique_officiel <---- [1] Etude_OMS
+15/03 07h00, score=90 15/03 08h00, score=45
+^ ^
+| |
++---------- [0] Vaccin_cache-+
+15/03 09h00, score=8
+^
++------+------+
+| |
+[2] Partagez_avant [4] Alerte_vaccin
+15/03 11h00, score=5 15/03 14h00, score=15
+^-----------+
+3
+Ce réseau correspond à la structure en mémoire suivante :
+articles[0] -> {id:0, titre:"La_verite_sur_le_vaccin_alerte_secret_choc",
+source:"page_TunisieActu",
+score_fiabilite:8,
+jour:15, mois:3, annee:2025, heure:9, minute:0}
+articles[1] -> {id:1, titre:"Etude_exclusif_urgent_OMS_choc_complot",
+source:"Kapitalis",
+score_fiabilite:45,
+jour:15, mois:3, annee:2025, heure:8, minute:0}
+articles[2] -> {id:2, titre:"Partagez_avant_suppression_urgent_urgent_choc_alerte",
+source:"TunisieNumerique",
+score_fiabilite:5,
+jour:15, mois:3, annee:2025, heure:11, minute:0}
+articles[3] -> {id:3, titre:"Communique_officiel_MinSante_MinistereSante",
+source:"MinistereSante",
+score_fiabilite:90,
+jour:15, mois:3, annee:2025, heure:7, minute:0}
+articles[4] -> {id:4, titre:"Wake_up_complot_interdit_censure_vaccin",
+source:"RTArabic",
+score_fiabilite:15,
+jour:15, mois:3, annee:2025, heure:14, minute:0}
+/* adjList[i] est une LISTE (TDA LISTE du cours) */
+/* dont les elements sont les articles cites par i */
+adjList[0] : listeCreer() ->
+pos 1 : articles[1] /* Vaccin_cache cite Etude_OMS */
+pos 2 : articles[3] /* Vaccin_cache cite Communique */
+lg = 2
+adjList[1] : listeCreer() ->
+pos 1 : articles[3] /* Etude_OMS cite Communique */
+lg = 1
+adjList[2] : listeCreer() ->
+pos 1 : articles[0] /* Partagez_avant cite Vaccin */
+lg = 1
+adjList[3] : listeCreer() ->
+lg = 0 /* Communique ne cite personne */
+adjList[4] : listeCreer() ->
+pos 1 : articles[0] /* Alerte_vaccin cite Vaccin */
+pos 2 : articles[2] /* Alerte_vaccin cite Partagez */
+lg = 2
+degre_in[0] = 2 /* A0 est cite par A2 et A4 */
+degre_in[1] = 1 /* A1 est cite par A0 */
+degre_in[2] = 1 /* A2 est cite par A4 */
+degre_in[3] = 2 /* A3 est cite par A0 et A1 */
+degre_in[4] = 0 /* A4 n’est cite par personne */
+Voici la représentation textuelle attendue en sortie de afficherGraphe :
+La_verite_sur_le_vaccin (id:0, source:page_TunisieActu,
+score:8, 15/03/2025 09h00)
+--> Etude_exclusif_urgent_OMS
+--> Communique_officiel_MinSante
+Etude_exclusif_urgent_OMS (id:1, source:Kapitalis,
+score:45, 15/03/2025 08h00)
+--> Communique_officiel_MinSante
+4
+Partagez_avant_suppression_urgent (id:2, source:TunisieNumerique,
+score:5, 15/03/2025 11h00)
+--> La_verite_sur_le_vaccin
+Communique_officiel_MinSante (id:3, source:MinistereSante,
+score:90, 15/03/2025 07h00)
+(ne cite aucun article)
+Wake_up_complot_vaccin_arabe (id:4, source:RTArabic,
+score:15, 15/03/2025 14h00)
+--> La_verite_sur_le_vaccin
+--> Partagez_avant_suppression_urgent
+3 Format du Fichier d’Entrée
+Le graphe est chargé depuis un fichier texte structuré comme suit. Chaque ligne com-
+mence par une lettre indiquant son type : A pour un article, C pour une citation. Les
+lignes commençant par # sont des commentaires ignorés.
+# Format : A id titre source score jour mois annee heure minute
+# C id_src id_dest
+A 0 "La_verite_sur_le_vaccin_alerte_secret_choc" page_TunisieActu 8 15 3 2025 9 0
+A 1 "Etude_exclusif_urgent_OMS_choc_complot" Kapitalis 45 15 3 2025 8 0
+A 2 "Partagez_avant_suppression_urgent_choc_alerte" TunisieNumerique 5 15 3 2025 11 0
+A 3 "Communique_officiel_MinSante_MinistereSante" MinistereSante 90 15 3 2025 7 0
+A 4 "Wake_up_complot_interdit_censure_vaccin" RTArabic 15 15 3 2025 14 0
+C 0 1 # Vaccin_cache cite Etude_OMS
+C 0 3 # Vaccin_cache cite Communique
+C 1 3 # Etude_OMS cite Communique
+C 2 0 # Partagez_avant cite Vaccin_cache
+C 4 0 # Alerte_vaccin cite Vaccin_cache
+C 4 2 # Alerte_vaccin cite Partagez_avant
+Règles importantes :
+— Chaque article est décrit sur une seule ligne commençant par A.
+— Les articles doivent être déclarés avant leurs citations.
+— Les identifiants sont des entiers consécutifs à partir de 0.
+— Le titre est entre guillemets et ne contient pas d’espaces.
+— Le score est un entier entre 0 et 100.
+— L’heure et la minute sont des entiers (ex : 9 pour 09h00, 30 pour 30 minutes).
+Génération du fichier de test : Pour tester votre projet avec un réseau plus grand,
+vous pouvez demander à un outil d’IA générative (ChatGPT, Gemini, etc.) de générer un
+fichier de données en respectant strictement ce format. Par exemple :
+"Génère un fichier de données pour un réseau de 10 articles
+sur la désinformation en Tunisie, au format suivant :
+A id titre source score jour mois annee heure minute
+C src dest
+avec des dates cohérentes (on ne cite que des articles
+déjà publiés), des scores variés entre 5 et 95,
+et au moins 2 articles qui se citent mutuellement."
+5
+Vous vérifierez que le fichier généré respecte bien le format avant de l’utiliser.
+4 Travail Demandé
+1. Implémentation du TDA grapheReseau
+Implémenter les fonctions suivantes (vous pouvez ajouter toute autre fonction néces-
+saire à votre implémentation) :
+/* Cree un graphe vide pouvant contenir V articles */
+grapheReseau creerGraphe(int V);
+/* Charge un graphe depuis un fichier au format defini ci-dessus */
+grapheReseau chargerGraphe(const char *filename);
+/* Detruit le graphe et libere toute la memoire allouee */
+void detruireGraphe(grapheReseau g);
+/* Ajoute un article dans le graphe */
+/* Retourne 1 si succes, 0 sinon */
+int ajouterArticle(grapheReseau g, ELEMENT art);
+/* Supprime un article et toutes ses citations */
+/* entrantes et sortantes */
+/* Retourne 1 si succes, 0 sinon */
+int supprimerArticle(grapheReseau g, int idArt);
+/* Ajoute la citation orientee src -> dest */
+/* (l’article src cite l’article dest) */
+/* Retourne 1 si succes, 0 sinon */
+int ajouterCitation(grapheReseau g, int idSrc, int idDest);
+/* Supprime la citation orientee src -> dest */
+/* Retourne 1 si succes, 0 sinon */
+int supprimerCitation(grapheReseau g, int idSrc, int idDest);
+/* Affiche le graphe */
+void afficherGraphe(grapheReseau g);
+2. Interrogation du réseau
+/* Affiche tous les articles cites par l’article idSrc */
+void articlesCites(grapheReseau g, int idSrc);
+/* Affiche tous les articles qui citent l’article idDest */
+void articlesCitants(grapheReseau g, int idDest);
+/* Affiche les articles qui ne citent aucun autre article */
+/* Ce sont les sources originales du reseau */
+void sourcesOriginales(grapheReseau g);
+/* Affiche les articles qui ne sont cites par personne */
+6
+/* Ce sont les articles isoles du reseau */
+void articlesIsoles(grapheReseau g);
+/* Retourne l’article le plus cite du reseau */
+/* (celui qui a le degre_in le plus eleve) */
+ELEMENT articlePlusCite(grapheReseau g);
+Exemples attendus sur notre réseau :
+articlesCites(g, 0) :
+--> Etude_exclusif_urgent_OMS
+--> Communique_officiel_MinSante
+articlesCitants(g, 3) :
+--> La_verite_sur_le_vaccin
+--> Etude_exclusif_urgent_OMS
+sourcesOriginales(g) :
+--> Communique_officiel_MinSante (ne cite personne)
+articlesIsoles(g) :
+--> Wake_up_complot_vaccin_arabe (non cite par personne)
+articlePlusCite(g) :
+--> La_verite_sur_le_vaccin (cite par 2 articles)
+--> Communique_officiel_MinSante (cite par 2 articles)
+3. Analyse chronologique
+Chaque article possède une date et heure de publication. On peut donc analyser dans
+quel ordre les articles ont été publiés et reconstituer la chaîne de propagation.
+/* Compare deux articles par date/heure de publication */
+/* Retourne un entier negatif si art1 est publie avant art2, */
+/* 0 si meme date/heure, positif sinon */
+int comparerDates(ELEMENT art1, ELEMENT art2);
+/* Affiche les articles tries par ordre chronologique */
+/* de publication (du plus ancien au plus recent) */
+/* Utiliser un tri par insertion ou selection */
+void trierParDate(grapheReseau g);
+/* Affiche le premier article qui a cite l’article idDest */
+/* (celui dont la date de publication est la plus ancienne */
+/* parmi les articles qui citent idDest) */
+void premierCitant(grapheReseau g, int idDest);
+/* Reconstitue et affiche la chaine chronologique de */
+/* propagation depuis l’article idSrc : */
+/* affiche les articles dans l’ordre ou ils ont ete publies */
+/* en citant un article deja dans la chaine */
+void chainePropagation(grapheReseau g, int idSrc);
+7
+Exemples attendus sur notre réseau :
+trierParDate(g) :
+1. Communique_officiel_MinSante (15/03/2025 07h00)
+2. Etude_exclusif_urgent_OMS (15/03/2025 08h00)
+3. La_verite_sur_le_vaccin (15/03/2025 09h00)
+4. Partagez_avant_suppression_urgent(15/03/2025 11h00)
+5. Wake_up_complot_vaccin_arabe (15/03/2025 14h00)
+premierCitant(g, 0) :
+--> Partagez_avant_suppression_urgent (15/03/2025 11h00,
+avant Alerte 14h00)
+chainePropagation(g, 3) :
+Communique_officiel_MinSante (15/03/2025 07h00)
+--> cite par Etude_OMS (15/03/2025 08h00)
+--> cite par Vaccin_cache (15/03/2025 09h00)
+--> cite par Partagez_avant (15/03/2025 11h00)
+--> cite par Alerte_vaccin (15/03/2025 14h00)
+4. Simulation de propagation — Parcours en Largeur (BFS)
+Breadth-First Search (BFS), ou Parcours en Largeur, est un algorithme clas-
+sique d’exploration de graphe. L’idée est simple : imaginez qu’une rumeur se propage
+sur les réseaux sociaux. D’abord, tous les sites qui citent directement la source ap-
+prennent la nouvelle (niveau 1). Ensuite, les sites qui citent ces sites apprennent la
+nouvelle (niveau 2), et ainsi de suite. Le BFS explore exactement dans cet ordre, ni-
+veau par niveau, ce qui permet de savoir à quelle distance (en nombre de citations)
+un article se trouve de la source.
+On utilise une file FIFO (premier entré, premier sorti) pour implémenter le BFS : on
+place la source dans la file, puis on retire un article, on enfile ses voisins non encore
+visités, et on recommence jusqu’à ce que la file soit vide. On réalise cette file avec le
+TDA LISTE vu en cours :
+— enfiler (ajouter en queue) : inserer(file, e, listeTaille(file)+1)
+— défiler (retirer en tête) : recuperer(file, 1) puis supprimer(file, 1)
+Remarque : si vous n’êtes pas encore familier avec le BFS, vous pouvez le rechercher
+dans la littérature algorithmique ou demander à un outil d’IA de vous l’expliquer
+avant de l’implémenter. L’important est que vous compreniez le principe et que vous
+l’implémentiez vous-même en utilisant les primitives du TDA LISTE.
+/* Simule la propagation depuis l’article idSrc : */
+/* affiche niveau par niveau les articles atteints. */
+/* Un article deja atteint n’est pas traite deux fois. */
+void simulerPropagation(grapheReseau g, int idSrc);
+/* Affiche tous les articles accessibles depuis idSrc */
+/* (directs et indirects) via leurs citations. */
+void articlesAccessibles(grapheReseau g, int idSrc);
+Exemples attendus sur notre réseau :
+8
+simulerPropagation(g, 3) :
+Niveau 0 : Communique_officiel_MinSante
+Niveau 1 : Etude_OMS, Vaccin_cache
+Niveau 2 : Partagez_avant, Alerte_vaccin
+3 niveaux, 5 articles atteints.
+articlesAccessibles(g, 3) :
+Communique_officiel_MinSante
+Etude_exclusif_urgent_OMS
+La_verite_sur_le_vaccin
+Partagez_avant_suppression_urgent
+Wake_up_complot_vaccin_arabe
+5. Détection naïve de fausses informations
+On dispose d’une base de fragments de texte confirmés comme faux et d’une liste de
+mots suspects fréquemment utilisés dans les fake news :
+/* Fichier : fakesdb.h */
+#define NB_FAKES 6
+#define NB_SUSPECTS 8
+static const char *BASE_FAKES[] = {
+"ils vous cachent", "partagez avant suppression",
+"ce qu on vous cache", "la verite sur",
+"les medias ne disent pas","wake up"
+};
+static const char *MOTS_SUSPECTS[] = {
+"alerte", "urgent", "exclusif", "censure",
+"complot", "secret", "interdit", "choc"
+};
+/* Calcule un score de suspicion pour un article : */
+/* +40 pts si le titre contient un element de */
+/* BASE_FAKES (recherche insensible a la casse) */
+/* +10 pts par mot de MOTS_SUSPECTS trouve dans */
+/* le titre */
+/* Met a jour art->score_fiabilite = */
+/* max(0, 100 - score_suspicion) */
+/* Retourne le score de suspicion calcule */
+int analyserArticle(ELEMENT art);
+/* Applique analyserArticle() a tous les articles */
+/* Affiche un rapport : */
+/* SUSPECT : score_fiabilite < 40 */
+/* DOUTEUX : score_fiabilite entre 40 et 69 */
+/* FIABLE : score_fiabilite >= 70 */
+void analyserReseau(grapheReseau g);
+/* Affiche les articles suspects les plus cites */
+/* (score_fiabilite < 40 ET degre_in > 0) */
+9
+/* tries par degre_in decroissant */
+void articlesSuspectsCites(grapheReseau g);
+Exemples attendus :
+analyserReseau(g) :
+[SUSPECT] Partagez_avant_suppression_urgent (score: 5)
+"partagez avant suppression"
+[SUSPECT] La_verite_sur_le_vaccin (score: 8)
+mots: secret, choc
+[SUSPECT] Wake_up_complot_vaccin_arabe (score:15)
+mots: alerte
+[DOUTEUX] Etude_exclusif_urgent_OMS (score:45)
+[FIABLE ] Communique_officiel_MinSante (score:90)
+articlesSuspectsCites(g) :
+La_verite_sur_le_vaccin (score:8, cite par 2 articles)
+6. Analyse de robustesse — Bonus
+Points bonus : Cette partie est facultative. Les points obtenus s’ajoutent aux 15
+points du projet et peuvent compenser des points manquants lors de l’évaluation sur
+machine (5 pts), sans dépasser le total de 20/20.
+On cherche à mesurer l’impact de la suppression d’un article sur la propagation de la
+fake news.
+/* Supprime l’article idArt et affiche : */
+/* - le nombre d’articles qui le citaient */
+/* - le nombre d’articles qu’il citait */
+/* - les articles qui ne sont plus accessibles */
+/* depuis la source apres sa suppression */
+void simulerSuppression(grapheReseau g, int idArt);
+/* Trouve et affiche le nombre minimum d’articles */
+/* a supprimer pour qu’il n’existe plus aucun chemin */
+/* de citations entre idSrc et idDest. */
+/* Ne supprime jamais idSrc ni idDest eux-memes. */
+/* Retourne le nombre d’articles supprimes. */
+int neutraliserPropagation(grapheReseau g,
+int idSrc, int idDest);
+Exemple attendu :
+simulerSuppression(g, 0) :
+Suppression de La_verite_sur_le_vaccin :
+- Etait cite par : Partagez_avant, Alerte_vaccin (2)
+- Citait : Etude_OMS, Communique_officiel_MinSante (2)
+- Articles deconnectes : Partagez_avant, Alerte_vaccin
+neutraliserPropagation(g, 4, 3) :
+Article supprime : La_verite_sur_le_vaccin (score:8)
+10
+Plus aucun chemin de Alerte_vaccin vers Communique.
+Nombre d’articles supprimes : 1
+7. Programme principal (main.c)
+Implémenter un menu interactif permettant de tester toutes les fonctionnalités du
+projet :
+===== Reseau d’Information =====
+1. Charger un reseau depuis un fichier
+2. Ajouter un article
+3. Ajouter une citation
+4. Supprimer un article
+5. Supprimer une citation
+6. Afficher le reseau
+7. Articles cites par un article
+8. Articles qui citent un article
+9. Sources originales / articles isoles
+10. Article le plus cite
+11. Trier par date de publication
+12. Premier article citant
+13. Chaine de propagation
+14. Simuler la propagation (BFS)
+15. Analyser les articles (fake news)
+16. Articles suspects les plus cites
+17. [BONUS] Simuler la suppression d’un article
+18. [BONUS] Neutraliser une propagation
+0. Quitter
+==================================
+Bon travail !
+11
